@@ -1,0 +1,2 @@
+class HarvesterException(Exception):
+    pass

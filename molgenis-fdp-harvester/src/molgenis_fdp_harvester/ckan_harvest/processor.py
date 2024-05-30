@@ -1,0 +1,208 @@
+# SPDX-FileCopyrightText: Open Knowlege
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# This material is copyright (c) Open Knowledge.
+# It is open and licensed under the GNU Affero General Public License (AGPL) v3.0
+# Original location of file: https://github.com/ckan/ckanext-dcat/blob/master/ckanext/dcat/processors.py
+#
+# Modified by Stichting Health-RI to remove dependencies on CKAN
+import xml
+from pkg_resources import iter_entry_points
+
+# from ckantoolkit import config
+
+import rdflib
+import rdflib.parser
+from rdflib import URIRef, BNode, Literal
+from rdflib.namespace import Namespace, RDF
+
+# import ckan.plugins as p
+
+# from ckanext.dcat.utils import (
+#     catalog_uri,
+#     dataset_uri,
+#     url_to_rdflib_format,
+#     DCAT_EXPOSE_SUBCATALOGS,
+# )
+from .baseparser import DCAT, DCT, FOAF
+
+# from ckanext.dcat.exceptions import RDFProfileException, RDFParserException
+
+HYDRA = Namespace("http://www.w3.org/ns/hydra/core#")
+DCAT = Namespace("http://www.w3.org/ns/dcat#")
+
+RDF_PROFILES_ENTRY_POINT_GROUP = "ckan.rdf.profiles"
+RDF_PROFILES_CONFIG_OPTION = "ckanext.dcat.rdf.profiles"
+COMPAT_MODE_CONFIG_OPTION = "ckanext.dcat.compatibility_mode"
+
+DEFAULT_RDF_PROFILES = ["euro_dcat_ap_2"]
+
+
+def url_to_rdflib_format(_format):
+    """
+    Translates the RDF formats used on the endpoints to rdflib ones
+    """
+    if _format == "ttl":
+        _format = "turtle"
+    elif _format in ("rdf", "xml"):
+        _format = "pretty-xml"
+    elif _format == "jsonld":
+        _format = "json-ld"
+
+    return _format
+
+
+class RDFProcessor(object):
+    def __init__(self, profiles=None, compatibility_mode=False):
+        """
+        Creates a parser or serializer instance
+
+        You can optionally pass a list of profiles to be used.
+
+        In compatibility mode, some fields are modified to maintain
+        compatibility with previous versions of the ckanext-dcat parsers
+        (eg adding the `dcat_` prefix or storing comma separated lists instead
+        of JSON dumps).
+
+        """
+        if not profiles:
+            profiles = config.get(RDF_PROFILES_CONFIG_OPTION, None)
+            if profiles:
+                profiles = profiles.split(" ")
+            else:
+                profiles = DEFAULT_RDF_PROFILES
+        self._profiles = self._load_profiles(profiles)
+        if not self._profiles:
+            raise HarvesterException("No suitable RDF profiles could be loaded")
+
+        if not compatibility_mode:
+            compatibility_mode = p.toolkit.asbool(
+                config.get(COMPAT_MODE_CONFIG_OPTION, False)
+            )
+        self.compatibility_mode = compatibility_mode
+
+        self.g = rdflib.ConjunctiveGraph()
+
+    def _load_profiles(self, profile_names):
+        """
+        Loads the specified RDF parser profiles
+
+        These are registered on ``entry_points`` in setup.py, under the
+        ``[ckan.rdf.profiles]`` group.
+        """
+        profiles = []
+        loaded_profiles_names = []
+
+        for profile_name in profile_names:
+            for profile in iter_entry_points(
+                group=RDF_PROFILES_ENTRY_POINT_GROUP, name=profile_name
+            ):
+                profile_class = profile.load()
+                # Set a reference to the profile name
+                profile_class.name = profile.name
+                profiles.append(profile_class)
+                loaded_profiles_names.append(profile.name)
+                break
+
+        unknown_profiles = set(profile_names) - set(loaded_profiles_names)
+        if unknown_profiles:
+            raise RDFProfileException(
+                "Unknown RDF profiles: {0}".format(", ".join(sorted(unknown_profiles)))
+            )
+
+        return profiles
+
+
+class RDFParser(RDFProcessor):
+    """
+    An RDF to CKAN parser based on rdflib
+
+    Supports different profiles which are the ones that will generate
+    CKAN dicts from the RDF graph.
+    """
+
+    def _datasets(self):
+        """
+        Generator that returns all DCAT datasets on the graph
+
+        Yields rdflib.term.URIRef objects that can be used on graph lookups
+        and queries
+        """
+        for dataset in self.g.subjects(RDF.type, DCAT.Dataset):
+            yield dataset
+
+    def next_page(self):
+        """
+        Returns the URL of the next page or None if there is no next page
+        """
+        for pagination_node in self.g.subjects(RDF.type, HYDRA.PagedCollection):
+            # Try to find HYDRA.next first
+            for o in self.g.objects(pagination_node, HYDRA.next):
+                return str(o)
+
+            # If HYDRA.next is not found, try HYDRA.nextPage (deprecated)
+            for o in self.g.objects(pagination_node, HYDRA.nextPage):
+                return str(o)
+        return None
+
+    def parse(self, data, _format=None):
+        """
+        Parses and RDF graph serialization and into the class graph
+
+        It calls the rdflib parse function with the provided data and format.
+
+        Data is a string with the serialized RDF graph (eg RDF/XML, N3
+        ... ). By default RF/XML is expected. The optional parameter _format
+        can be used to tell rdflib otherwise.
+
+        It raises a ``RDFParserException`` if there was some error during
+        the parsing.
+
+        Returns nothing.
+        """
+
+        _format = url_to_rdflib_format(_format)
+        if not _format or _format == "pretty-xml":
+            # _format = "xml"
+            # Let rdflib take care of it
+            _format = None
+
+        try:
+            self.g.parse(data=data, format=_format)
+        # Apparently there is no single way of catching exceptions from all
+        # rdflib parsers at once, so if you use a new one and the parsing
+        # exceptions are not cached, add them here.
+        # PluginException indicates that an unknown format was passed.
+        except (
+            SyntaxError,
+            xml.sax.SAXParseException,
+            rdflib.plugin.PluginException,
+            TypeError,
+        ) as e:
+            raise HarvesterException(e)
+
+    def supported_formats(self):
+        """
+        Returns a list of all formats supported by this processor.
+        """
+        return sorted(
+            [plugin.name for plugin in rdflib.plugin.plugins(kind=rdflib.parser.Parser)]
+        )
+
+    def datasets(self):
+        """
+        Generator that returns CKAN datasets parsed from the RDF graph
+
+        Each dataset is passed to all the loaded profiles before being
+        yielded, so it can be further modified by each one of them.
+
+        Returns a dataset dict that can be passed to eg `package_create`
+        or `package_update`
+        """
+        for dataset_ref in self._datasets():
+            dataset_dict = {}
+            for profile_class in self._profiles:
+                profile = profile_class(self.g, self.compatibility_mode)
+                profile.parse_dataset(dataset_dict, dataset_ref)
+
+            yield dataset_dict

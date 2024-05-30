@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["rdflib"]
+dependencies = ["rdflib", "python-dateutil", "pandas"]
 
 [project.urls]
 Documentation = "https://github.com/unknown/molgenis-fdp-harvester#readme"
