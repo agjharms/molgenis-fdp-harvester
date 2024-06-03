@@ -15,6 +15,7 @@ import re
 from dateutil.parser import parse as parse_date
 from rdflib import term, URIRef, BNode, Literal
 from rdflib.namespace import Namespace, RDF, XSD, SKOS, RDFS
+from geomet import wkt, InvalidGeoJSONException
 
 # from ckantoolkit import config, url_for, asbool, get_action
 # from ckan.model.license import LicenseRegister

@@ -16,6 +16,8 @@ import rdflib.parser
 from rdflib import URIRef, BNode, Literal
 from rdflib.namespace import Namespace, RDF
 
+from molgenis_fdp_harvester.utils import HarvesterException
+
 # import ckan.plugins as p
 
 # from ckanext.dcat.utils import (
@@ -65,52 +67,52 @@ class RDFProcessor(object):
         of JSON dumps).
 
         """
-        if not profiles:
-            profiles = config.get(RDF_PROFILES_CONFIG_OPTION, None)
-            if profiles:
-                profiles = profiles.split(" ")
-            else:
-                profiles = DEFAULT_RDF_PROFILES
-        self._profiles = self._load_profiles(profiles)
-        if not self._profiles:
-            raise HarvesterException("No suitable RDF profiles could be loaded")
+        # if not profiles:
+        #     profiles = config.get(RDF_PROFILES_CONFIG_OPTION, None)
+        #     if profiles:
+        #         profiles = profiles.split(" ")
+        #     else:
+        #         profiles = DEFAULT_RDF_PROFILES
+        # self._profiles = self._load_profiles(profiles)
+        # if not self._profiles:
+        #     raise HarvesterException("No suitable RDF profiles could be loaded")
 
-        if not compatibility_mode:
-            compatibility_mode = p.toolkit.asbool(
-                config.get(COMPAT_MODE_CONFIG_OPTION, False)
-            )
-        self.compatibility_mode = compatibility_mode
+        # if not compatibility_mode:
+        #     compatibility_mode = p.toolkit.asbool(
+        #         config.get(COMPAT_MODE_CONFIG_OPTION, False)
+        #     )
+        # self.compatibility_mode = compatibility_mode
 
         self.g = rdflib.ConjunctiveGraph()
 
-    def _load_profiles(self, profile_names):
-        """
-        Loads the specified RDF parser profiles
+    # def _load_profiles(self, profile_names):
+    #     """
+    #     Loads the specified RDF parser profiles
 
-        These are registered on ``entry_points`` in setup.py, under the
-        ``[ckan.rdf.profiles]`` group.
-        """
-        profiles = []
-        loaded_profiles_names = []
+    #     These are registered on ``entry_points`` in setup.py, under the
+    #     ``[ckan.rdf.profiles]`` group.
+    #     """
+    #     profiles = []
+    #     loaded_profiles_names = []
 
-        for profile_name in profile_names:
-            for profile in iter_entry_points(
-                group=RDF_PROFILES_ENTRY_POINT_GROUP, name=profile_name
-            ):
-                profile_class = profile.load()
-                # Set a reference to the profile name
-                profile_class.name = profile.name
-                profiles.append(profile_class)
-                loaded_profiles_names.append(profile.name)
-                break
+    #     for profile_name in profile_names:
+    #         for profile in iter_entry_points(
+    #             group=RDF_PROFILES_ENTRY_POINT_GROUP, name=profile_name
+    #         ):
+    #             profile_class = profile.load()
+    #             # Set a reference to the profile name
+    #             profile_class.name = profile.name
+    #             profiles.append(profile_class)
+    #             loaded_profiles_names.append(profile.name)
+    #             break
 
-        unknown_profiles = set(profile_names) - set(loaded_profiles_names)
-        if unknown_profiles:
-            raise RDFProfileException(
-                "Unknown RDF profiles: {0}".format(", ".join(sorted(unknown_profiles)))
-            )
+    #     unknown_profiles = set(profile_names) - set(loaded_profiles_names)
+    #     if unknown_profiles:
+    #         raise RDFProfileException(
+    #             "Unknown RDF profiles: {0}".format(", ".join(sorted(unknown_profiles)))
+    #         )
 
-        return profiles
+    #     return profiles
 
 
 class RDFParser(RDFProcessor):
@@ -121,6 +123,7 @@ class RDFParser(RDFProcessor):
     CKAN dicts from the RDF graph.
     """
 
+    # FIXME The FDP harvester should do this from catalog root.
     def _datasets(self):
         """
         Generator that returns all DCAT datasets on the graph
