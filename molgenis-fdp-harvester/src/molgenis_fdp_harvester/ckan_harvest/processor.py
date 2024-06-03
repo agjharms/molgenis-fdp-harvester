@@ -134,6 +134,16 @@ class RDFParser(RDFProcessor):
         for dataset in self.g.subjects(RDF.type, DCAT.Dataset):
             yield dataset
 
+    def _catalogs(self):
+        """
+        Generator that returns all DCAT datasets on the graph
+
+        Yields rdflib.term.URIRef objects that can be used on graph lookups
+        and queries, or for get requests
+        """
+        for catalog in self.g.subjects(RDF.type, DCAT.Catalog):
+            yield catalog
+
     def next_page(self):
         """
         Returns the URL of the next page or None if there is no next page
@@ -209,3 +219,11 @@ class RDFParser(RDFProcessor):
                 profile.parse_dataset(dataset_dict, dataset_ref)
 
             yield dataset_dict
+
+    def dataset_in_catalog(self):
+        """
+        Generator that returns URIRef of all datasets referred to in Catalogs
+        """
+        for catalog_ref in self._catalogs():
+            for object in self.g.objects(catalog_ref, DCAT.dataset):
+                yield object

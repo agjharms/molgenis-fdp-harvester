@@ -131,9 +131,13 @@ class DCATRDFHarvester(DCATHarvester):
         last_content_hash = None
         self._names_taken = []
 
+        # TODO: profiles conf
+        parser = RDFParser()
+
         while next_page_url:
             if not next_page_url:
-                return []
+                # return []
+                break
 
             content, rdf_format = self._get_content_and_type(
                 next_page_url, harvest_job, 1, content_type=rdf_format
@@ -165,10 +169,8 @@ class DCATRDFHarvester(DCATHarvester):
             #         self._save_gather_error(error_msg, harvest_job)
 
             if not content:
-                return []
-
-            # TODO: profiles conf
-            parser = RDFParser()
+                break
+                # return []
 
             try:
                 parser.parse(content, _format=rdf_format)
@@ -176,7 +178,8 @@ class DCATRDFHarvester(DCATHarvester):
                 self._save_gather_error(
                     "Error parsing the RDF file: {0}".format(e), harvest_job
                 )
-                return []
+                # return []
+                break
 
             # for harvester in p.PluginImplementations(IDCATRDFHarvester):
             #     parser, after_parsing_errors = harvester.after_parsing(
@@ -189,13 +192,23 @@ class DCATRDFHarvester(DCATHarvester):
             if not parser:
                 return []
 
+            try:
+                # Data
+                for dataset in parser.dataset_in_catalog():
+                    parser.parse(dataset, _format=rdf_format)
+            except HarvesterException as e:
+                self._save_gather_error(
+                    "Error parsing the acquired dataset: {0}".format(e), harvest_job
+                )
+                # return []
+                break
+
             # get the next page
+            # FIXME: separate this out now that parser is global (else it'll always return a next page that isn't necessarily THE next page)
             next_page_url = parser.next_page()
 
         try:
             # source_dataset = model.Package.get(harvest_job.source.id)
-            # TODO datasets here are incomplete. Just get subject IRIs but assumes they are
-            # already loaded. Doesn't try to go from catalog.
             for dataset in parser.datasets():
                 if not dataset.get("name"):
                     dataset["name"] = self._gen_new_name(dataset["title"])
