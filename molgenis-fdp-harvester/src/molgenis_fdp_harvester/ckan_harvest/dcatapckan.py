@@ -62,8 +62,8 @@ class EuropeanDCATAPProfile(RDFProfile):
     """
 
     def parse_dataset(self, dataset_dict, dataset_ref):
-        dataset_dict["extras"] = []
-        dataset_dict["resources"] = []
+        # dataset_dict["extras"] = []
+        # dataset_dict["resources"] = []
 
         # Basic fields
         for key, predicate in (
@@ -262,6 +262,7 @@ class EuropeanDCATAPProfile(RDFProfile):
 
             dataset_dict["resources"].append(resource_dict)
 
+        # TODO: remove, dead code
         if self.compatibility_mode:
             # Tweak the resulting dict to make it compatible with previous
             # versions of the ckanext-dcat parsers

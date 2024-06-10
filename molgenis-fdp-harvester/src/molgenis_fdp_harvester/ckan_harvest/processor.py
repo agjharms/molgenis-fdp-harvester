@@ -6,6 +6,7 @@
 # Original location of file: https://github.com/ckan/ckanext-dcat/blob/master/ckanext/dcat/processors.py
 #
 # Modified by Stichting Health-RI to remove dependencies on CKAN
+from typing import List
 import xml
 from pkg_resources import iter_entry_points
 
@@ -55,64 +56,12 @@ def url_to_rdflib_format(_format):
 
 
 class RDFProcessor(object):
-    def __init__(self, profiles=None, compatibility_mode=False):
+    def __init__(self):
         """
         Creates a parser or serializer instance
-
-        You can optionally pass a list of profiles to be used.
-
-        In compatibility mode, some fields are modified to maintain
-        compatibility with previous versions of the ckanext-dcat parsers
-        (eg adding the `dcat_` prefix or storing comma separated lists instead
-        of JSON dumps).
-
         """
-        # if not profiles:
-        #     profiles = config.get(RDF_PROFILES_CONFIG_OPTION, None)
-        #     if profiles:
-        #         profiles = profiles.split(" ")
-        #     else:
-        #         profiles = DEFAULT_RDF_PROFILES
-        # self._profiles = self._load_profiles(profiles)
-        # if not self._profiles:
-        #     raise HarvesterException("No suitable RDF profiles could be loaded")
-
-        # if not compatibility_mode:
-        #     compatibility_mode = p.toolkit.asbool(
-        #         config.get(COMPAT_MODE_CONFIG_OPTION, False)
-        #     )
-        # self.compatibility_mode = compatibility_mode
 
         self.g = rdflib.ConjunctiveGraph()
-
-    # def _load_profiles(self, profile_names):
-    #     """
-    #     Loads the specified RDF parser profiles
-
-    #     These are registered on ``entry_points`` in setup.py, under the
-    #     ``[ckan.rdf.profiles]`` group.
-    #     """
-    #     profiles = []
-    #     loaded_profiles_names = []
-
-    #     for profile_name in profile_names:
-    #         for profile in iter_entry_points(
-    #             group=RDF_PROFILES_ENTRY_POINT_GROUP, name=profile_name
-    #         ):
-    #             profile_class = profile.load()
-    #             # Set a reference to the profile name
-    #             profile_class.name = profile.name
-    #             profiles.append(profile_class)
-    #             loaded_profiles_names.append(profile.name)
-    #             break
-
-    #     unknown_profiles = set(profile_names) - set(loaded_profiles_names)
-    #     if unknown_profiles:
-    #         raise RDFProfileException(
-    #             "Unknown RDF profiles: {0}".format(", ".join(sorted(unknown_profiles)))
-    #         )
-
-    #     return profiles
 
 
 class RDFParser(RDFProcessor):
@@ -122,6 +71,10 @@ class RDFParser(RDFProcessor):
     Supports different profiles which are the ones that will generate
     CKAN dicts from the RDF graph.
     """
+
+    def __init__(self, profiles: List):
+        super().__init__()
+        self._profiles = profiles
 
     # FIXME The FDP harvester should do this from catalog root.
     def _datasets(self):
@@ -158,7 +111,7 @@ class RDFParser(RDFProcessor):
                 return str(o)
         return None
 
-    def parse(self, data, _format=None):
+    def parse(self, data=None, _format=None, source=None):
         """
         Parses and RDF graph serialization and into the class graph
 
@@ -214,8 +167,9 @@ class RDFParser(RDFProcessor):
         """
         for dataset_ref in self._datasets():
             dataset_dict = {}
+            # FIXME add profile or hardcode it
             for profile_class in self._profiles:
-                profile = profile_class(self.g, self.compatibility_mode)
+                profile = profile_class(self.g)
                 profile.parse_dataset(dataset_dict, dataset_ref)
 
             yield dataset_dict

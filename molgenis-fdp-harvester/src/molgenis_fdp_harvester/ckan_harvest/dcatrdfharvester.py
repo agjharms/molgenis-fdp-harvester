@@ -11,10 +11,13 @@ from builtins import str
 
 # from past.builtins import basestring
 import json
+from typing import List
 import uuid
 import logging
 import hashlib
 import traceback
+
+from molgenis_fdp_harvester.ckan_harvest.baseharvester import munge_title_to_name
 
 # import ckan.plugins as p
 # import ckan.model as model
@@ -35,7 +38,18 @@ from .processor import RDFParser, HarvesterException
 log = logging.getLogger(__name__)
 
 
+class HarvestObject(object):
+    def __init__(self, guid, content):
+        self.guid = guid
+        self.content = content
+
+
 class DCATRDFHarvester(DCATHarvester):
+    _names_taken = []
+
+    def __init__(self, profiles: List):
+        super().__init__()
+        self._profiles = profiles
 
     def info(self):
         return {
@@ -43,8 +57,6 @@ class DCATRDFHarvester(DCATHarvester):
             "title": "Generic DCAT RDF Harvester",
             "description": "Harvester for DCAT datasets from an RDF graph",
         }
-
-    _names_taken = []
 
     def _get_dict_value(self, _dict, key, default=None):
         """
@@ -115,15 +127,13 @@ class DCATRDFHarvester(DCATHarvester):
     def validate_config(self, source_config):
         log.warning("validate_config: stub")
 
-    def gather_stage(self, harvest_job, harvest_root_uri):
+    def gather_stage(self, harvest_root_uri):
+
         log.debug("In DCATRDFHarvester gather_stage")
 
         rdf_format = None
-        # if harvest_job.source.config:
-        #     rdf_format = json.loads(harvest_job.source.config).get("rdf_format")
 
         # Get file contents of first page
-        # next_page_url = harvest_job.source.url
         next_page_url = harvest_root_uri
 
         guids_in_source = []
@@ -131,8 +141,7 @@ class DCATRDFHarvester(DCATHarvester):
         last_content_hash = None
         self._names_taken = []
 
-        # TODO: profiles conf
-        parser = RDFParser()
+        parser = RDFParser(self._profiles)
 
         while next_page_url:
             if not next_page_url:
@@ -140,10 +149,10 @@ class DCATRDFHarvester(DCATHarvester):
                 break
 
             content, rdf_format = self._get_content_and_type(
-                next_page_url, harvest_job, 1, content_type=rdf_format
+                next_page_url, 1, content_type=rdf_format
             )
 
-            # MD5 is not cryptographically secure anymore, but this is not a security concern.
+            # MD5 is not cryptographically secure anymore, but this is not a security function.
             # It is used as a fast hash function to make sure no duplicate data is received
             content_hash = hashlib.md5()
             if content:
@@ -158,16 +167,6 @@ class DCATRDFHarvester(DCATHarvester):
             else:
                 last_content_hash = content_hash
 
-            # TODO: store content?
-            # Plugin isnt implemented in practice.
-            # for harvester in p.PluginImplementations(IDCATRDFHarvester):
-            #     content, after_download_errors = harvester.after_download(
-            #         content, harvest_job
-            #     )
-
-            #     for error_msg in after_download_errors:
-            #         self._save_gather_error(error_msg, harvest_job)
-
             if not content:
                 break
                 # return []
@@ -176,18 +175,10 @@ class DCATRDFHarvester(DCATHarvester):
                 parser.parse(content, _format=rdf_format)
             except HarvesterException as e:
                 self._save_gather_error(
-                    "Error parsing the RDF file: {0}".format(e), harvest_job
+                    "Error parsing the RDF file: {0}".format(e), next_page_url
                 )
                 # return []
                 break
-
-            # for harvester in p.PluginImplementations(IDCATRDFHarvester):
-            #     parser, after_parsing_errors = harvester.after_parsing(
-            #         parser, harvest_job
-            #     )
-
-            #     for error_msg in after_parsing_errors:
-            #         self._save_gather_error(error_msg, harvest_job)
 
             if not parser:
                 return []
@@ -195,10 +186,14 @@ class DCATRDFHarvester(DCATHarvester):
             try:
                 # Data
                 for dataset in parser.dataset_in_catalog():
-                    parser.parse(dataset, _format=rdf_format)
+                    # get content
+                    dataset_content, dataset_rdf_format = self._get_content_and_type(
+                        dataset, 1, content_type=None
+                    )
+                    parser.parse(dataset_content, _format=dataset_rdf_format)
             except HarvesterException as e:
                 self._save_gather_error(
-                    "Error parsing the acquired dataset: {0}".format(e), harvest_job
+                    "Error parsing the acquired dataset: {0}".format(e),
                 )
                 # return []
                 break
@@ -228,46 +223,45 @@ class DCATRDFHarvester(DCATHarvester):
 
                 # Unless already set by the parser, get the owner organization (if any)
                 # from the harvest source dataset
-                if not dataset.get("owner_org"):
-                    if source_dataset.owner_org:
-                        dataset["owner_org"] = source_dataset.owner_org
+                # if not dataset.get("owner_org"):
+                #     if source_dataset.owner_org:
+                #         dataset["owner_org"] = source_dataset.owner_org
 
                 # Try to get a unique identifier for the harvested dataset
-                guid = self._get_guid(dataset, source_url=source_dataset.url)
+                guid = self._get_guid(dataset, source_url=dataset["uri"])
+
+                # FIXME molgenis ID cannot be URI but has to be alphanumeric string
+                dataset["id"] = munge_title_to_name(guid)
+                # dataset["extras"].append({"key": "guid", "value": guid})
 
                 if not guid:
                     self._save_gather_error(
                         "Could not get a unique identifier for dataset: {0}".format(
                             dataset
                         ),
-                        harvest_job,
+                        # harvest_job,
                     )
                     continue
 
-                dataset["extras"].append({"key": "guid", "value": guid})
                 guids_in_source.append(guid)
 
-                obj = HarvestObject(
-                    guid=guid, job=harvest_job, content=json.dumps(dataset)
-                )
+                obj = HarvestObject(guid=guid, content=json.dumps(dataset))
 
-                obj.save()
-                object_ids.append(obj.id)
+                self._harvest_objects.append(obj)
         except Exception as e:
             self._save_gather_error(
                 "Error when processsing dataset: %r / %s" % (e, traceback.format_exc()),
-                harvest_job,
             )
             return []
 
-        # Check if some datasets need to be deleted
-        object_ids_to_delete = self._mark_datasets_for_deletion(
-            guids_in_source, harvest_job
-        )
+        # # Check if some datasets need to be deleted
+        # object_ids_to_delete = self._mark_datasets_for_deletion(
+        #     guids_in_source,
+        # )
 
-        object_ids.extend(object_ids_to_delete)
+        # object_ids.extend(object_ids_to_delete)
 
-        return object_ids
+        return self._harvest_objects
 
     def fetch_stage(self, harvest_object):
         # Nothing to do here
