@@ -4,6 +4,7 @@ import logging
 import requests
 import rdflib
 
+
 # from ckan import plugins as p
 # from ckan import model
 
@@ -138,9 +139,7 @@ class DCATHarvester(HarvesterBase):
         Helper function for retrieving the value from a harvest object extra,
         given the key
         """
-        for extra in harvest_object.extras:
-            if extra.key == key:
-                return extra.value
+        log.warning("_get_object_extra: stubbed")
         return None
 
     def _get_package_name(self, harvest_object, title):

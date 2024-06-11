@@ -18,6 +18,8 @@ import hashlib
 import traceback
 
 from molgenis_fdp_harvester.ckan_harvest.baseharvester import munge_title_to_name
+from molgenis.client import Session
+
 
 # import ckan.plugins as p
 # import ckan.model as model
@@ -42,14 +44,16 @@ class HarvestObject(object):
     def __init__(self, guid, content):
         self.guid = guid
         self.content = content
+        self.status = None
 
 
 class DCATRDFHarvester(DCATHarvester):
     _names_taken = []
 
-    def __init__(self, profiles: List):
+    def __init__(self, profiles: List, entity_name: str):
         super().__init__()
         self._profiles = profiles
+        self.entity_name = entity_name
 
     def info(self):
         return {
@@ -267,217 +271,45 @@ class DCATRDFHarvester(DCATHarvester):
         # Nothing to do here
         return True
 
-    def import_stage(self, harvest_object):
+    def import_stage(self, harvest_object: HarvestObject, molgenis_session: Session):
 
         log.debug("In DCATRDFHarvester import_stage")
 
         status = self._get_object_extra(harvest_object, "status")
         if status == "delete":
-            # Delete package
-            context = {
-                "model": model,
-                "session": model.Session,
-                "user": self._get_user_name(),
-                "ignore_auth": True,
-            }
-
-            try:
-                p.toolkit.get_action("package_delete")(
-                    context, {"id": harvest_object.package_id}
-                )
-                log.info(
-                    "Deleted package {0} with guid {1}".format(
-                        harvest_object.package_id, harvest_object.guid
-                    )
-                )
-            except p.toolkit.ObjectNotFound:
-                log.info(
-                    "Package {0} already deleted.".format(harvest_object.package_id)
-                )
-
+            log.warning("import_stage: deleting datasets is currently not supported")
             return True
 
         if harvest_object.content is None:
-            self._save_object_error(
-                "Empty content for object {0}".format(harvest_object.id),
-                harvest_object,
-                "Import",
+            log.error(
+                "import_stage: Empty content for object {0}".format(harvest_object.id),
             )
             return False
 
         try:
             dataset = json.loads(harvest_object.content)
         except ValueError:
-            self._save_object_error(
-                "Could not parse content for object {0}".format(harvest_object.id),
-                harvest_object,
-                "Import",
+            log.error(
+                "import_stage: Could not parse content for object {0}".format(
+                    harvest_object.id
+                ),
             )
             return False
-
-        # Get the last harvested object (if any)
-        previous_object = (
-            model.Session.query(HarvestObject)
-            .filter(HarvestObject.guid == harvest_object.guid)
-            .filter(HarvestObject.current == True)
-            .first()
-        )
-
-        # Flag previous object as not current anymore
-        if previous_object:
-            previous_object.current = False
-            previous_object.add()
-
-        # Flag this object as the current one
-        harvest_object.current = True
-        harvest_object.add()
-
-        context = {
-            "user": self._get_user_name(),
-            "return_id_only": True,
-            "ignore_auth": True,
-        }
 
         dataset = self.modify_package_dict(dataset, {}, harvest_object)
 
         # Check if a dataset with the same guid exists
-        existing_dataset = self._get_existing_dataset(harvest_object.guid)
+        # existing_dataset = self._get_existing_dataset(harvest_object.guid)
 
         try:
-            package_plugin = lib_plugins.lookup_package_plugin(
-                dataset.get("type", None)
-            )
-            if existing_dataset:
-                package_schema = package_plugin.update_package_schema()
-                for harvester in p.PluginImplementations(IDCATRDFHarvester):
-                    package_schema = harvester.update_package_schema_for_update(
-                        package_schema
-                    )
-                context["schema"] = package_schema
-
-                # Don't change the dataset name even if the title has
-                dataset["name"] = existing_dataset["name"]
-                dataset["id"] = existing_dataset["id"]
-
-                harvester_tmp_dict = {}
-
-                # check if resources already exist based on their URI
-                existing_resources = existing_dataset.get("resources")
-                resource_mapping = {
-                    r.get("uri"): r.get("id")
-                    for r in existing_resources
-                    if r.get("uri")
-                }
-                for resource in dataset.get("resources"):
-                    res_uri = resource.get("uri")
-                    if res_uri and res_uri in resource_mapping:
-                        resource["id"] = resource_mapping[res_uri]
-
-                for harvester in p.PluginImplementations(IDCATRDFHarvester):
-                    harvester.before_update(harvest_object, dataset, harvester_tmp_dict)
-
-                try:
-                    if dataset:
-                        # Save reference to the package on the object
-                        harvest_object.package_id = dataset["id"]
-                        harvest_object.add()
-
-                        p.toolkit.get_action("package_update")(context, dataset)
-                    else:
-                        log.info("Ignoring dataset %s" % existing_dataset["name"])
-                        return "unchanged"
-                except p.toolkit.ValidationError as e:
-                    self._save_object_error(
-                        "Update validation Error: %s" % str(e.error_summary),
-                        harvest_object,
-                        "Import",
-                    )
-                    return False
-
-                for harvester in p.PluginImplementations(IDCATRDFHarvester):
-                    err = harvester.after_update(
-                        harvest_object, dataset, harvester_tmp_dict
-                    )
-
-                    if err:
-                        self._save_object_error(
-                            "RDFHarvester plugin error: %s" % err,
-                            harvest_object,
-                            "Import",
-                        )
-                        return False
-
-                log.info("Updated dataset %s" % dataset["name"])
-
-            else:
-                package_schema = package_plugin.create_package_schema()
-                for harvester in p.PluginImplementations(IDCATRDFHarvester):
-                    package_schema = harvester.update_package_schema_for_create(
-                        package_schema
-                    )
-                context["schema"] = package_schema
-
-                # We need to explicitly provide a package ID
-                dataset["id"] = str(uuid.uuid4())
-                package_schema["id"] = [unicode_safe]
-
-                harvester_tmp_dict = {}
-
-                name = dataset["name"]
-                for harvester in p.PluginImplementations(IDCATRDFHarvester):
-                    harvester.before_create(harvest_object, dataset, harvester_tmp_dict)
-
-                try:
-                    if dataset:
-                        # Save reference to the package on the object
-                        harvest_object.package_id = dataset["id"]
-                        harvest_object.add()
-
-                        # Defer constraints and flush so the dataset can be indexed with
-                        # the harvest object id (on the after_show hook from the harvester
-                        # plugin)
-                        model.Session.execute(
-                            "SET CONSTRAINTS harvest_object_package_id_fkey DEFERRED"
-                        )
-                        model.Session.flush()
-
-                        p.toolkit.get_action("package_create")(context, dataset)
-                    else:
-                        log.info("Ignoring dataset %s" % name)
-                        return "unchanged"
-                except p.toolkit.ValidationError as e:
-                    self._save_object_error(
-                        "Create validation Error: %s" % str(e.error_summary),
-                        harvest_object,
-                        "Import",
-                    )
-                    return False
-
-                for harvester in p.PluginImplementations(IDCATRDFHarvester):
-                    err = harvester.after_create(
-                        harvest_object, dataset, harvester_tmp_dict
-                    )
-
-                    if err:
-                        self._save_object_error(
-                            "RDFHarvester plugin error: %s" % err,
-                            harvest_object,
-                            "Import",
-                        )
-                        return False
-
-                log.info("Created dataset %s" % dataset["name"])
+            log.info("Added dataset %s" % dataset["name"])
+            molgenis_session.add(self.entity_name, dataset)
 
         except Exception as e:
-            self._save_object_error(
-                "Error importing dataset %s: %r / %s"
+            log.error(
+                "import_stage: Error importing dataset %s: %r / %s"
                 % (dataset.get("name", ""), e, traceback.format_exc()),
-                harvest_object,
-                "Import",
             )
             return False
-
-        finally:
-            model.Session.commit()
 
         return True
