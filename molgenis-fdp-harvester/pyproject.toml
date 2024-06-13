@@ -3,6 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
+dependencies = [
+  "click",
+  "rdflib",
+  "python-dateutil",
+  "pandas",
+  "geomet",
+  "requests",
+  "molgenis-py-client",
+]
 name = "molgenis-fdp-harvester"
 dynamic = ["version"]
 description = 'This project contains a FAIR Data Point harvester for MOLGENIS.'
@@ -22,25 +31,21 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = [
-  "rdflib",
-  "python-dateutil",
-  "pandas",
-  "geomet",
-  "requests",
-  "molgenis-py-client",
-]
 
 [project.urls]
 Documentation = "https://github.com/unknown/molgenis-fdp-harvester#readme"
 Issues = "https://github.com/unknown/molgenis-fdp-harvester/issues"
 Source = "https://github.com/unknown/molgenis-fdp-harvester"
 
+[project.scripts]
+harvest = "molgenis_fdp_harvester.harvester:cli"
+
 [tool.hatch.version]
 path = "src/molgenis_fdp_harvester/__about__.py"
 
 [tool.hatch.envs.default]
 dependencies = ["coverage[toml]>=6.5", "pytest"]
+
 [tool.hatch.envs.default.scripts]
 test = "pytest {args:tests}"
 test-cov = "coverage run -m pytest {args:tests}"

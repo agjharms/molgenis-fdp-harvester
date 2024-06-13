@@ -267,9 +267,21 @@ class DCATRDFHarvester(DCATHarvester):
 
         return self._harvest_objects
 
-    def fetch_stage(self, harvest_object):
-        # Nothing to do here
-        return True
+    def fetch_stage(self, molgenis_session: Session) -> List[str]:
+        # Reusing the fetch stage to get a list of IDs
+        # Note: very specific to current EUCAIM collections
+        try:
+            self._existing_dataset_guid = [
+                x["id"] for x in molgenis_session.get(self.entity_name)
+            ]
+        except Exception as e:
+            log.error(
+                "fetch_stage: Error getting list of uids %s: %r / %s",
+                (self.entity_name, e, traceback.format_exc()),
+            )
+            self._existing_dataset_guid = []
+
+        return self._existing_dataset_guid
 
     def import_stage(self, harvest_object: HarvestObject, molgenis_session: Session):
 
@@ -300,11 +312,13 @@ class DCATRDFHarvester(DCATHarvester):
 
         # Check if a dataset with the same guid exists
         # existing_dataset = self._get_existing_dataset(harvest_object.guid)
-
         try:
-            log.info("Added dataset %s" % dataset["name"])
-            molgenis_session.add(self.entity_name, dataset)
-
+            if harvest_object.guid in self._existing_dataset_guid:
+                log.info("Updating dataset %s" % dataset["name"])
+                molgenis_session.update_all("EUCAIM_collections", [dataset])
+            else:
+                log.info("Adding dataset %s" % dataset["name"])
+                molgenis_session.add(self.entity_name, dataset)
         except Exception as e:
             log.error(
                 "import_stage: Error importing dataset %s: %r / %s"
