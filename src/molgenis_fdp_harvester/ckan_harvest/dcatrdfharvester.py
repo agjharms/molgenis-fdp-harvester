@@ -12,7 +12,6 @@ from builtins import str
 # from past.builtins import basestring
 import json
 from typing import List
-import uuid
 import logging
 import hashlib
 import traceback

@@ -9,7 +9,7 @@
 
 import json
 
-from rdflib import term, URIRef, BNode, Literal
+from rdflib import term
 
 # import ckantoolkit as toolkit
 
@@ -21,26 +21,14 @@ from rdflib import term, URIRef, BNode, Literal
 #     DCAT_CLEAN_TAGS,
 #     publisher_uri_organization_fallback,
 # )
-from .baseparser import RDFProfile, URIRefOrLiteral, CleanedURIRef, munge_tag
+from .baseparser import RDFProfile, munge_tag
 from .baseparser import (
-    RDF,
-    XSD,
-    SKOS,
-    RDFS,
     DCAT,
     DCT,
     ADMS,
-    XSD,
-    VCARD,
     FOAF,
-    SCHEMA,
-    SKOS,
-    LOCN,
-    GSP,
     OWL,
     SPDX,
-    GEOJSON_IMT,
-    namespaces,
 )
 
 # config = toolkit.config

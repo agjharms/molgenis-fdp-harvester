@@ -7,10 +7,9 @@
 #
 # Modified by Stichting Health-RI to remove dependencies on CKAN
 
-import json
 from typing import Dict
 
-from rdflib import term, URIRef, BNode, Literal
+from rdflib import URIRef
 
 import logging
 
@@ -25,26 +24,9 @@ import logging
 #     DCAT_CLEAN_TAGS,
 #     publisher_uri_organization_fallback,
 # )
-from .baseparser import RDFProfile, URIRefOrLiteral, CleanedURIRef, munge_tag
+from .baseparser import RDFProfile, munge_tag
 from .baseparser import (
-    RDF,
-    XSD,
-    SKOS,
-    RDFS,
-    DCAT,
     DCT,
-    ADMS,
-    XSD,
-    VCARD,
-    FOAF,
-    SCHEMA,
-    SKOS,
-    LOCN,
-    GSP,
-    OWL,
-    SPDX,
-    GEOJSON_IMT,
-    namespaces,
 )
 
 log = logging.getLogger(__name__)

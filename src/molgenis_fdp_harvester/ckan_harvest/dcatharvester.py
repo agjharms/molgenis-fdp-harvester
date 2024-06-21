@@ -126,7 +126,7 @@ class DCATHarvester(HarvesterBase):
             )
             self._save_gather_error(msg)
             return None, None
-        except requests.exceptions.Timeout as error:
+        except requests.exceptions.Timeout:
             msg = (
                 "Could not get content from %s because the connection timed"
                 " out." % url

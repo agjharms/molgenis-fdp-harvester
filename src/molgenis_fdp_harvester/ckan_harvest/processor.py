@@ -8,13 +8,11 @@
 # Modified by Stichting Health-RI to remove dependencies on CKAN
 from typing import List
 import xml
-from pkg_resources import iter_entry_points
 
 # from ckantoolkit import config
 
 import rdflib
 import rdflib.parser
-from rdflib import URIRef, BNode, Literal
 from rdflib.namespace import Namespace, RDF
 
 from molgenis_fdp_harvester.utils import HarvesterException
@@ -27,7 +25,7 @@ from molgenis_fdp_harvester.utils import HarvesterException
 #     url_to_rdflib_format,
 #     DCAT_EXPOSE_SUBCATALOGS,
 # )
-from .baseparser import DCAT, DCT, FOAF
+from .baseparser import DCAT
 
 # from ckanext.dcat.exceptions import RDFProfileException, RDFParserException
 
