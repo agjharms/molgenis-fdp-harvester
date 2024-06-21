@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: Open Knowlege
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-FileContributor: Stichting Health-RI
+
 # This material is copyright (c) Open Knowledge.
 # It is open and licensed under the GNU Affero General Public License (AGPL) v3.0
 # Original location of file: https://raw.githubusercontent.com/ckan/ckanext-dcat/master/ckanext/dcat/profiles/euro_dcat_ap.py

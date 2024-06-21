@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: Open Knowledge
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-FileContributor: Stichting Health-RI
+
 # This material is copyright (c) Open Knowledge.
 # It is open and licensed under the GNU Affero General Public License (AGPL) v3.0
 # Original location of file: https://github.com/ckan/ckanext-harvest/blob/master/ckanext/harvest/harvesters/base.py
