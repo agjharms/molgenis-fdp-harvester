@@ -158,32 +158,14 @@ class DCATHarvester(HarvesterBase):
         return name
 
     def get_original_url(self, harvest_object_id):
-        return NotImplementedError()
-        # obj = (
-        #     model.Session.query(HarvestObject)
-        #     .filter(HarvestObject.id == harvest_object_id)
-        #     .first()
-        # )
-        # if obj:
-        #     return obj.source.url
-        return None
+        raise NotImplementedError()
 
     def _read_datasets_from_db(self, guid):
         """
         Returns a database result of datasets matching the given guid.
         """
 
-        return NotImplementedError()
-
-        # datasets = (
-        #     model.Session.query(model.Package.id)
-        #     .join(model.PackageExtra)
-        #     .filter(model.PackageExtra.key == "guid")
-        #     .filter(model.PackageExtra.value == guid)
-        #     .filter(model.Package.state == "active")
-        #     .all()
-        # )
-        # return datasets
+        raise NotImplementedError()
 
     def _get_existing_dataset(self, guid):
         """
