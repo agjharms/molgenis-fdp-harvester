@@ -164,15 +164,6 @@ class EuropeanDCATAPProfile(RDFProfile):
         if "license_id" not in dataset_dict:
             dataset_dict["license_id"] = self._license(dataset_ref)
 
-        # Source Catalog
-        # FIXME nulled out for now
-        if False:
-            if toolkit.asbool(config.get(DCAT_EXPOSE_SUBCATALOGS, False)):
-                catalog_src = self._get_source_catalog(dataset_ref)
-                if catalog_src is not None:
-                    src_data = self._extract_catalog_dict(catalog_src)
-                    dataset_dict["extras"].extend(src_data)
-
         # Resources
         for distribution in self._distributions(dataset_ref):
             resource_dict = {}

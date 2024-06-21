@@ -9,28 +9,14 @@
 from typing import List
 import xml
 
-# from ckantoolkit import config
-
 import rdflib
 import rdflib.parser
-from rdflib.namespace import Namespace, RDF
+from rdflib.namespace import Namespace, RDF, DCAT
 
 from molgenis_fdp_harvester.utils import HarvesterException
 
-# import ckan.plugins as p
-
-# from ckanext.dcat.utils import (
-#     catalog_uri,
-#     dataset_uri,
-#     url_to_rdflib_format,
-#     DCAT_EXPOSE_SUBCATALOGS,
-# )
-from .baseparser import DCAT
-
-# from ckanext.dcat.exceptions import RDFProfileException, RDFParserException
 
 HYDRA = Namespace("http://www.w3.org/ns/hydra/core#")
-DCAT = Namespace("http://www.w3.org/ns/dcat#")
 
 RDF_PROFILES_ENTRY_POINT_GROUP = "ckan.rdf.profiles"
 RDF_PROFILES_CONFIG_OPTION = "ckanext.dcat.rdf.profiles"
@@ -165,7 +151,6 @@ class RDFParser(RDFProcessor):
         """
         for dataset_ref in self._datasets():
             dataset_dict = {}
-            # FIXME add profile or hardcode it
             for profile_class in self._profiles:
                 profile = profile_class(self.g)
                 profile.parse_dataset(dataset_dict, dataset_ref)

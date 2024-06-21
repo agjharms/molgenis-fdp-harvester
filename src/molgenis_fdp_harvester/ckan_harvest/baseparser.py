@@ -11,28 +11,22 @@ import datetime
 import json
 from urllib.parse import quote
 import re
+import logging
 
 from dateutil.parser import parse as parse_date
 from rdflib import term, URIRef, BNode, Literal
-from rdflib.namespace import Namespace, RDF, XSD, SKOS, RDFS
+from rdflib.namespace import Namespace, RDF, XSD, SKOS, RDFS, DCAT, FOAF, TIME, OWL
+from rdflib.namespace import DCTERMS as DCT
 from geomet import wkt, InvalidGeoJSONException
 
-# from ckantoolkit import config, url_for, asbool, get_action
-# from ckan.model.license import LicenseRegister
-# from ckan.lib.helpers import resource_formats
-# from ckanext.dcat.utils import DCAT_EXPOSE_SUBCATALOGS
+log = logging.getLogger(__name__)
 
-DCT = Namespace("http://purl.org/dc/terms/")
-DCAT = Namespace("http://www.w3.org/ns/dcat#")
 DCATAP = Namespace("http://data.europa.eu/r5r/")
 ADMS = Namespace("http://www.w3.org/ns/adms#")
 VCARD = Namespace("http://www.w3.org/2006/vcard/ns#")
-FOAF = Namespace("http://xmlns.com/foaf/0.1/")
 SCHEMA = Namespace("http://schema.org/")
-TIME = Namespace("http://www.w3.org/2006/time")
 LOCN = Namespace("http://www.w3.org/ns/locn#")
 GSP = Namespace("http://www.opengis.net/ont/geosparql#")
-OWL = Namespace("http://www.w3.org/2002/07/owl#")
 SPDX = Namespace("http://spdx.org/rdf/terms#")
 
 namespaces = {
@@ -169,7 +163,7 @@ def munge_tag(tag: str) -> str:
     tag = substitute_ascii_equivalents(tag)
     tag = tag.lower().strip()
     tag = re.sub(r"[^a-zA-Z0-9\- ]", "", tag).replace(" ", "-")
-    tag = _munge_to_length(tag, model.MIN_TAG_LENGTH, model.MAX_TAG_LENGTH)
+    tag = _munge_to_length(tag, MIN_TAG_LENGTH, MAX_TAG_LENGTH)
     return tag
 
 
@@ -650,32 +644,8 @@ class RDFProfile(object):
         one.
         """
         # TODO reimplement according to license register
-
+        log.debug("License register: stubbed")
         return "Unknown"
-
-        if self._licenceregister_cache is not None:
-            license_uri2id, license_title2id = self._licenceregister_cache
-        else:
-            license_uri2id = {}
-            license_title2id = {}
-            for license_id, license in list(LicenseRegister().items()):
-                license_uri2id[license.url] = license_id
-                license_title2id[license.title] = license_id
-            self._licenceregister_cache = license_uri2id, license_title2id
-
-        for distribution in self._distributions(dataset_ref):
-            # If distribution has a license, attach it to the dataset
-            license = self._object(distribution, DCT.license)
-            if license:
-                # Try to find a matching license comparing URIs, then titles
-                license_id = license_uri2id.get(license.toPython())
-                if not license_id:
-                    license_id = license_title2id.get(
-                        self._object_value(license, DCT.title)
-                    )
-                if license_id:
-                    return license_id
-        return ""
 
     def _access_rights(self, subject, predicate):
         """
@@ -733,41 +703,6 @@ class RDFProfile(object):
         """
         # TODO reimplement distributions, mainly the mediatype part
         raise NotImplementedError
-
-        imt = None
-        label = None
-
-        imt = self._object_value(distribution, DCAT.mediaType)
-
-        _format = self._object(distribution, DCT["format"])
-        if isinstance(_format, Literal):
-            if not imt and "/" in _format:
-                imt = str(_format)
-            else:
-                label = str(_format)
-        elif isinstance(_format, (BNode, URIRef)):
-            if self._object(_format, RDF.type) == DCT.IMT:
-                if not imt:
-                    imt = str(self.g.value(_format, default=None))
-                label = self._object_value(_format, RDFS.label)
-            elif isinstance(_format, URIRef):
-                # If the URIRef does not reference a BNode, it could reference an IANA type.
-                # Otherwise, use it as label.
-                format_uri = str(_format)
-                if "iana.org/assignments/media-types" in format_uri and not imt:
-                    imt = format_uri
-                else:
-                    label = format_uri
-
-        if (imt or label) and normalize_ckan_format:
-            format_registry = resource_formats()
-
-            if imt in format_registry:
-                label = format_registry[imt][1]
-            elif label in format_registry:
-                label = format_registry[label][1]
-
-        return imt, label
 
     def _get_dict_value(self, _dict, key, default=None):
         """
@@ -988,18 +923,6 @@ class RDFProfile(object):
         found.
         """
         return NotImplementedError
-
-        context = {"ignore_auth": True}
-        result = get_action("package_search")(
-            context,
-            {
-                "sort": "metadata_modified desc",
-                "rows": 1,
-            },
-        )
-        if result and result.get("results"):
-            return result["results"][0]["metadata_modified"]
-        return None
 
     def _add_mailto(self, mail_addr):
         """

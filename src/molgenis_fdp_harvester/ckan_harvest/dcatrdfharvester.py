@@ -140,7 +140,6 @@ class DCATRDFHarvester(DCATHarvester):
         next_page_url = harvest_root_uri
 
         guids_in_source = []
-        object_ids = []
         last_content_hash = None
         self._names_taken = []
 
@@ -310,7 +309,6 @@ class DCATRDFHarvester(DCATHarvester):
         dataset = self.modify_package_dict(dataset, {}, harvest_object)
 
         # Check if a dataset with the same guid exists
-        # existing_dataset = self._get_existing_dataset(harvest_object.guid)
         try:
             if harvest_object.guid in self._existing_dataset_guid:
                 log.info("Updating dataset %s" % dataset["name"])

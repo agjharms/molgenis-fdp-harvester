@@ -9,7 +9,6 @@
 
 import logging
 import re
-import uuid
 
 from molgenis_fdp_harvester.ckan_harvest.baseparser import (
     _munge_to_length,
@@ -127,54 +126,8 @@ class HarvesterBase(object):
                             either 'number-sequence' or 'random-hex'.
         :type append_type: string
         """
-        return ideal_name
 
         ideal_name = ideal_name[:PACKAGE_NAME_MAX_LENGTH]
-        if existing_name == ideal_name:
-            return ideal_name
-        if append_type == "number-sequence":
-            MAX_NUMBER_APPENDED = 999
-            APPEND_MAX_CHARS = len(str(MAX_NUMBER_APPENDED))
-        elif append_type == "random-hex":
-            APPEND_MAX_CHARS = 5  # 16^5 = 1 million combinations
-        else:
-            raise NotImplementedError("append_type cannot be %s" % append_type)
-        # Find out which package names have been taken. Restrict it to names
-        # derived from the ideal name plus and numbers added
-        like_q = "%s%%" % ideal_name[: PACKAGE_NAME_MAX_LENGTH - APPEND_MAX_CHARS]
-
-        # FIXME  below is the part that needs to be made MOLGENIS compatible
-        name_results = (
-            Session.query(Package.name).filter(Package.name.ilike(like_q)).all()
-        )
-
-        taken = set([name_result[0] for name_result in name_results])
-        if existing_name and existing_name in taken:
-            taken.remove(existing_name)
-        if ideal_name not in taken:
-            # great, the ideal name is available
-            return ideal_name
-        elif existing_name and existing_name.startswith(ideal_name):
-            # the ideal name is not available, but its an existing dataset with
-            # a name based on the ideal one, so there's no point changing it to
-            # a different number
-            return existing_name
-        elif append_type == "number-sequence":
-            # find the next available number
-            counter = 1
-            while counter <= MAX_NUMBER_APPENDED:
-                candidate_name = ideal_name[
-                    : PACKAGE_NAME_MAX_LENGTH - len(str(counter))
-                ] + str(counter)
-                if candidate_name not in taken:
-                    return candidate_name
-                counter = counter + 1
-            return None
-        elif append_type == "random-hex":
-            return (
-                ideal_name[: PACKAGE_NAME_MAX_LENGTH - APPEND_MAX_CHARS]
-                + str(uuid.uuid4())[:APPEND_MAX_CHARS]
-            )
 
     def _get_user_name(self):
         """

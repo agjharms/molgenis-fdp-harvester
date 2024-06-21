@@ -191,17 +191,7 @@ class DCATHarvester(HarvesterBase):
 
         Returns a dict as the ones returned by package_show
         """
-
-        datasets = self._read_datasets_from_db(guid)
-
-        if not datasets:
-            return None
-        elif len(datasets) > 1:
-            log.error(
-                "Found more than one dataset with the same guid: {0}".format(guid)
-            )
-
-        return p.toolkit.get_action("package_show")({}, {"id": datasets[0][0]})
+        raise NotImplementedError()
 
     # Start hooks
 
