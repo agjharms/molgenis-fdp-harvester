@@ -51,6 +51,9 @@ GEOJSON_IMT = "https://www.iana.org/assignments/media-types/application/vnd.geo+
 
 HARVEST_DEFAULT_LABEL_LANGUAGE = "en"
 
+MIN_TAG_LENGTH = 2
+MAX_TAG_LENGTH = 100
+
 
 # Below taken from https://github.com/ckan/ckan/blob/master/ckan/lib/munge.py
 def _munge_to_length(string: str, min_length: int, max_length: int) -> str:
