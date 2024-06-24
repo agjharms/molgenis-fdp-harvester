@@ -6,6 +6,7 @@ import click
 from molgenis_fdp_harvester.ckan_harvest.dcatrdfharvester import DCATRDFHarvester
 from molgenis_fdp_harvester.ckan_harvest.molgenis_dcat_profile import (
     MolgenisEUCAIMDCATAPProfile,
+    MolgenisEIBIRDCATAPProfile,
 )
 from molgenis.client import Session
 
@@ -32,7 +33,7 @@ def cli(
     molgenis_session = Session(host)
     molgenis_session.login(username, password)
 
-    harvest = DCATRDFHarvester([MolgenisEUCAIMDCATAPProfile], entity)
+    harvest = DCATRDFHarvester([MolgenisEIBIRDCATAPProfile], entity)
 
     harvest.gather_stage(fdp)
     # for object in harvest._harvest_objects:

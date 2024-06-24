@@ -92,3 +92,59 @@ class MolgenisEUCAIMDCATAPProfile(RDFProfile):
 
     def graph_from_catalog(self, catalog_dict, catalog_ref):
         raise NotImplementedError("FDP export is handled by MOLGENIS")
+
+class MolgenisEIBIRDCATAPProfile(RDFProfile):
+    """
+    An RDF profile based on the DCAT-AP for data portals in Europe
+
+    More information and specification:
+
+    https://joinup.ec.europa.eu/asset/dcat_application_profile
+
+    """
+
+    def parse_dataset(self, dataset_dict: Dict, dataset_ref: URIRef):
+        # dataset_dict["extras"] = []
+        # dataset_dict["resources"] = []
+        dataset_dict["uri"] = str(dataset_ref)
+        # Basic fields
+        for key, predicate in (
+            ("name", DCT.title),
+            ("description", DCT.description),
+        ):
+            value = self._object_value(dataset_ref, predicate)
+            if value:
+                dataset_dict[key] = value
+
+        # TODO replace tags by keywords
+
+        # Tags
+        # replace munge_tag to noop if there's no need to clean tags
+        # do_clean = toolkit.asbool(config.get(DCAT_CLEAN_TAGS, False))
+        do_clean = DCAT_CLEAN_TAGS
+        tags_val = [
+            munge_tag(tag) if do_clean else tag for tag in self._keywords(dataset_ref)
+        ]
+        tags = [{"name": tag} for tag in tags_val]
+        # dataset_dict["tags"] = tags
+
+        # These values are fake. They need to be made "real"
+        log.warn("Filling in fake values")
+        dataset_dict["biobank"] = "aaaadaeyv7ps2aaaaaaaaaaaae"
+        dataset_dict["network"] = "EUCANIMAGE"
+        dataset_dict["order_of_magnitude"] = 1
+        dataset_dict["country"] = "EU"
+        dataset_dict["collection_method"] = "OTHER"
+        dataset_dict["data_categories"] = "RAW_DATASETS"
+        dataset_dict["body_part_examined"] = "Breast"
+        dataset_dict["type"] = "DISEASE_SPECIFIC"
+        dataset_dict["imaging_modality"] = "MRI"
+        dataset_dict["image_access_type"] = "BY_REQUEST"
+
+        return dataset_dict
+
+    def graph_from_dataset(self, dataset_dict, dataset_ref):
+        raise NotImplementedError("FDP export is handled by MOLGENIS")
+
+    def graph_from_catalog(self, catalog_dict, catalog_ref):
+        raise NotImplementedError("FDP export is handled by MOLGENIS")
