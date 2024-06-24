@@ -312,9 +312,10 @@ class DCATRDFHarvester(DCATHarvester):
 
         # Check if a dataset with the same guid exists
         try:
-            if harvest_object.guid in self._existing_dataset_guid:
+            clean_guid = str(harvest_object.guid).replace('://', '-').replace('/', '-').replace('.','-').lower()
+            if clean_guid in self._existing_dataset_guid:
                 log.info("Updating dataset %s" % dataset["name"])
-                molgenis_session.update_all("EUCAIM_collections", [dataset])
+                molgenis_session.update_all(self.entity_name, [dataset])
             else:
                 log.info("Adding dataset %s" % dataset["name"])
                 molgenis_session.add(self.entity_name, dataset)
