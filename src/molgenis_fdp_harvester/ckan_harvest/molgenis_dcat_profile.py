@@ -129,7 +129,7 @@ class MolgenisEIBIRDCATAPProfile(RDFProfile):
         # dataset_dict["tags"] = tags
 
         # These values are fake. They need to be made "real"
-        log.warn("Filling in fake values")
+        # log.warn("Filling in fake values")
         dataset_dict["biobank"] = "aaaadaeyv7ps2aaaaaaaaaaaae"
         dataset_dict["network"] = "EUCANIMAGE"
         dataset_dict["order_of_magnitude"] = 1
